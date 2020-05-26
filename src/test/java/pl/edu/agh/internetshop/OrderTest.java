@@ -29,6 +29,7 @@ public class OrderTest {
 
 	@Test
 	public void createOfferWithNoProducts() {
+		// when then
 		assertThrows(IllegalArgumentException.class, () -> new Order(Collections.emptyList()));
 	}
 
@@ -94,18 +95,22 @@ public class OrderTest {
 		assertNull(order.getShipment());
 	}
 
-	private Product getProductWithMockedPrice(BigDecimal price) {
-		Product product = mock(Product.class);
-		given(product.getPrice()).willReturn(price);
-		return product;
+	private List<Product> getProductsWithMockedPrices(BigDecimal... prices) {
+		List<Product> products = new ArrayList<>();
+		for(BigDecimal price: prices) {
+			Product product = mock(Product.class);
+			given(product.getPrice()).willReturn(price);
+			products.add(product);
+		}
+		return products;
 	}
 
 	@Test
 	public void testGetPrice() throws Exception {
 		// given
 		BigDecimal expectedProductPrice = BigDecimal.valueOf(1000);
-		Product product = getProductWithMockedPrice(expectedProductPrice);
-		Order order = new Order(Collections.singletonList(product));
+		List<Product> products = getProductsWithMockedPrices(expectedProductPrice);
+		Order order = new Order(products);
 
 		// when
 		BigDecimal actualProductPrice = order.getPrice();
@@ -118,9 +123,8 @@ public class OrderTest {
 	public void getPriceWhenMultipleProducts() {
 		// given
 		BigDecimal expectedProductsPrice = BigDecimal.valueOf(3000);
-		Product product1 = getProductWithMockedPrice(BigDecimal.valueOf(1000));
-		Product product2 = getProductWithMockedPrice(BigDecimal.valueOf(2000));
-		Order order = new Order(Arrays.asList(product1, product2));
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000), BigDecimal.valueOf(2000));
+		Order order = new Order(products);
 
 		// when
 		BigDecimal actualProductsPrice = order.getPrice();
@@ -264,5 +268,144 @@ public class OrderTest {
 
 		// then
 		assertFalse(order.isPaid());
+	}
+
+	@Test
+	public void setGeneralDiscount() {
+		// given
+		Order order = getOrderWithMockedProduct();
+
+		// when
+		BigDecimal expectedDiscount = BigDecimal.valueOf(0.5);
+		order.setGeneralDiscount(expectedDiscount);
+
+		// then
+		assertBigDecimalCompareValue(expectedDiscount, order.getGeneralDiscount());
+	}
+
+	@Test
+	public void setTooBigGeneralDiscount() {
+		// given
+		Order order = getOrderWithMockedProduct();
+
+		// when then
+		assertThrows(IllegalArgumentException.class, () -> order.setGeneralDiscount(BigDecimal.valueOf(1.5)));
+	}
+
+	@Test
+	public void setTooSmallGeneralDiscount() {
+		// given
+		Order order = getOrderWithMockedProduct();
+
+		// when then
+		assertThrows(IllegalArgumentException.class, () -> order.setGeneralDiscount(BigDecimal.valueOf(-0.5)));
+	}
+
+	@Test
+	public void getGeneralDiscountWhenNotSet() {
+		// given
+		Order order = getOrderWithMockedProduct();
+
+		// when
+		BigDecimal actualDiscount = order.getGeneralDiscount();
+
+		// then
+		assertBigDecimalCompareValue(BigDecimal.ZERO, actualDiscount);
+	}
+
+
+	@Test
+	public void setDiscountOnProduct() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000), BigDecimal.valueOf(2000));
+		Order order = new Order(products);
+		BigDecimal expectedDiscount = BigDecimal.valueOf(0.5);
+		order.setDiscount(products.get(1), expectedDiscount);
+
+		// when
+		BigDecimal actualDiscount = order.getDiscount(products.get(1));
+
+		// then
+		assertBigDecimalCompareValue(expectedDiscount, actualDiscount);
+	}
+
+	@Test
+	public void setTooBigDiscountOnProduct() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000));
+		Order order = new Order(products);
+
+		// when then
+		assertThrows(IllegalArgumentException.class, () -> order.setDiscount(products.get(0), BigDecimal.valueOf(1.5)));
+	}
+
+	@Test
+	public void setTooSmallDiscountOnProduct() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000));
+		Order order = new Order(products);
+
+		// when then
+		assertThrows(IllegalArgumentException.class, () -> order.setDiscount(products.get(0), BigDecimal.valueOf(-0.5)));
+	}
+
+	@Test
+	public void getProductDiscountWhenNotSet() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000));
+		Order order = new Order(products);
+
+		// when
+		BigDecimal actualDiscount = order.getDiscount(products.get(0));
+
+		// then
+		assertBigDecimalCompareValue(BigDecimal.ZERO, actualDiscount);
+	}
+
+	@Test
+	public void getProductDiscountWhenSetMultipleTimes() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000));
+		Order order = new Order(products);
+		BigDecimal expectedDiscount = BigDecimal.valueOf(0.7);
+		order.setDiscount(products.get(0), BigDecimal.valueOf(0.3));
+		order.setDiscount(products.get(0), BigDecimal.valueOf(0.5));
+		order.setDiscount(products.get(0), expectedDiscount);
+
+		// when
+		BigDecimal actualDiscount = order.getDiscount(products.get(0));
+
+		// then
+		assertBigDecimalCompareValue(expectedDiscount, actualDiscount);
+	}
+
+	@Test
+	public void getPriceOfOfferWithDiscountedProducts() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000), BigDecimal.valueOf(2000));
+		Order order = new Order(products);
+		order.setDiscount(products.get(0), BigDecimal.valueOf(0.5));
+		order.setDiscount(products.get(1), BigDecimal.valueOf(0.3));
+
+		// when
+		BigDecimal actualPrice = order.getPriceWithDiscounts();
+
+		// then
+		assertBigDecimalCompareValue(BigDecimal.valueOf(1900), actualPrice);
+	}
+
+	@Test
+	public void getPriceOfOfferWithGeneralDiscount() {
+		// given
+		List<Product> products = getProductsWithMockedPrices(BigDecimal.valueOf(1000), BigDecimal.valueOf(2000));
+		Order order = new Order(products);
+		order.setDiscount(products.get(0), BigDecimal.valueOf(0.5));
+		order.setDiscount(products.get(1), BigDecimal.valueOf(0.3));
+
+		// when
+		BigDecimal actualPrice = order.getPriceWithDiscounts();
+
+		// then
+		assertBigDecimalCompareValue(BigDecimal.valueOf(1900), actualPrice);
 	}
 }
