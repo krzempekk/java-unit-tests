@@ -94,12 +94,17 @@ public class OrderTest {
 		assertNull(order.getShipment());
 	}
 
+	private Product getProductWithMockedPrice(BigDecimal price) {
+		Product product = mock(Product.class);
+		given(product.getPrice()).willReturn(price);
+		return product;
+	}
+
 	@Test
 	public void testGetPrice() throws Exception {
 		// given
 		BigDecimal expectedProductPrice = BigDecimal.valueOf(1000);
-		Product product = mock(Product.class);
-		given(product.getPrice()).willReturn(expectedProductPrice);
+		Product product = getProductWithMockedPrice(expectedProductPrice);
 		Order order = new Order(Collections.singletonList(product));
 
 		// when
@@ -107,6 +112,21 @@ public class OrderTest {
 
 		// then
 		assertBigDecimalCompareValue(expectedProductPrice, actualProductPrice);
+	}
+
+	@Test
+	public void getPriceWhenMultipleProducts() {
+		// given
+		BigDecimal expectedProductsPrice = BigDecimal.valueOf(3000);
+		Product product1 = getProductWithMockedPrice(BigDecimal.valueOf(1000));
+		Product product2 = getProductWithMockedPrice(BigDecimal.valueOf(2000));
+		Order order = new Order(Arrays.asList(product1, product2));
+
+		// when
+		BigDecimal actualProductsPrice = order.getPrice();
+
+		// then
+		assertBigDecimalCompareValue(expectedProductsPrice, actualProductsPrice);
 	}
 
 	private Order getOrderWithCertainProductPrice(double productPriceValue) {
